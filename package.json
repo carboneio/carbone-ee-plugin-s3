@@ -1,0 +1,31 @@
+{
+  "name": "carbone-ee-plugin-s3",
+  "version": "1.0.0",
+  "description": "S3 Plugin for Carbone On-premise & On-AWS (carbone-ee) ",
+  "main": "null",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/carboneio/carbone-ee-plugin-s3.git"
+  },
+  "keywords": [
+    "S3",
+    "document",
+    "generation",
+    "Carbone.io",
+    "Swift",
+    "Storage",
+    "File"
+  ],
+  "author": "steevepay",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/carboneio/carbone-ee-plugin-s3/issues"
+  },
+  "homepage": "https://github.com/carboneio/carbone-ee-plugin-s3#readme",
+  "dependencies": {
+    "tiny-storage-client": "=3.0.1"
+  }
+}
