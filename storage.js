@@ -78,9 +78,9 @@ function deleteTemplate (req, res, templateId, callback) {
   });
 }
 
-function afterRender (req, res, err, reportPath, reportName, stats, next) {
+function afterRender (req, res, err, reportPath, reportName, stats, callback) {
     if (err) {
-        return next(err);
+        return callback(err);
     }
     s3Storage.uploadFile(config.getConfig().renderContainerName, reportName, reportPath, (err, resp) => {
         if (err) {
@@ -93,7 +93,7 @@ function afterRender (req, res, err, reportPath, reportName, stats, next) {
     });
 }
 
-function readRender (req, res, renderId, next) {
+function readRender (req, res, renderId, callback) {
     const renderPath = path.join(renderDir, renderId);
 
     fs.access(renderPath, fs.F_OK, (err) => {
@@ -119,7 +119,7 @@ function readRender (req, res, renderId, next) {
         return callback(null, renderPath);
       });
 
-    return next(null, renderPath);
+    return callback(null, renderPath);
 }
 
 module.exports = {
