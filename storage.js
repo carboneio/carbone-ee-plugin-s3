@@ -1,44 +1,45 @@
-const s3Storage = require('./objectStorage')
-const config = require('./config');
+
 const fs = require('fs');
 const path = require('path');
-const templateDir = config.getConfig().templatePath || path.join(__dirname, '..', 'template');
-const renderDir = config.getConfig().renderPath || path.join(__dirname, '..', 'render');
+const config = require('./config');
+
+const s3 = require('tiny-storage-client')(config.getConfig().storageCredentials);
+s3.setTimeout(30000)
 
 const _config = config.getConfig();
+const templateDir =_config.templatePath || path.join(__dirname, '..', 'template');
+const renderDir =_config.renderPath || path.join(__dirname, '..', 'render');
 
 if (!_config?.storageCredentials) {
   console.log("🔴 Plugin error: missing config 'storageCredentials'");
   process.exit(1);
 }
 
-if (!_config?.renderContainerName) {
-  console.log("🔴 Plugin error: missing config 'renderContainerName'");
+if (!_config?.rendersBucket) {
+  console.log("🔴 Plugin error: missing config 'rendersBucket'");
   process.exit(1);
 }
 
-if (!_config?.templateContainerName) {
-  console.log("🔴 Plugin error: missing config 'templateContainerName'");
+if (!_config?.templatesBucket) {
+  console.log("🔴 Plugin error: missing config 'templatesBucket'");
   process.exit(1);
 }
 
-s3Storage.connection((err) => {
-    if (err) {
-        console.log("🔴 Object storage error:", err.toString());
-        process.exit(1);
-    }
+connection((err) => {
+  if (err) {
+    console.log("🔴 S3 error:", err.toString());
+    process.exit(1);
+  }
 })
 
 function writeTemplate (req, res, templateId, templatePath, callback) {
-    const _s3Header = {
-        'x-amz-meta-ext'    : req.headers?.['carbone-template-extension'] ?? ''
-    };
+    const _s3Header = {};
 
     if (req.headers?.['carbone-template-mimetype']) {
         _s3Header['content-type'] = req.headers['carbone-template-mimetype'];
     }
 
-    s3Storage.uploadFile(config.getConfig().templateContainerName, templateId, templatePath, { headers: _s3Header }, (err, resp) => {
+    s3.uploadFile(config.getConfig().templatesBucket, templateId, templatePath, { headers: _s3Header }, (err, resp) => {
         if (err) {
         return callback(err, templateId);
         }
@@ -54,7 +55,7 @@ function readTemplate (req, res, templateId, callback) {
 
   fs.access(templatePath, fs.F_OK, (err) => {
     if (err) {      
-      return s3Storage.downloadFile(config.getConfig().templateContainerName, templateId, (err, resp) => {
+      return s3.downloadFile(config.getConfig().templatesBucket, templateId, (err, resp) => {
         if (err) {
           return callback(err);
         }
@@ -77,7 +78,7 @@ function readTemplate (req, res, templateId, callback) {
 }
 
 function deleteTemplate (req, res, templateId, callback) {
-  s3Storage.deleteFile(config.getConfig().templateContainerName, templateId, (err, resp) => {
+  s3.deleteFile(config.getConfig().templatesBucket, templateId, (err, resp) => {
     if (err) {
       return callback(err);
     }
@@ -92,7 +93,7 @@ function afterRender (req, res, err, reportPath, reportName, stats, callback) {
     if (err) {
         return callback(err);
     }
-    s3Storage.uploadFile(config.getConfig().renderContainerName, reportName, reportPath, (err, resp) => {
+    s3.uploadFile(config.getConfig().rendersBucket, reportName, reportPath, (err, resp) => {
         if (err) {
         return callback(err);
         }
@@ -108,7 +109,7 @@ function readRender (req, res, renderId, callback) {
 
   fs.access(renderPath, fs.F_OK, (err) => {
     if (err) {
-      return s3Storage.downloadFile(config.getConfig().renderContainerName, renderId, (err, resp) => {
+      return s3.downloadFile(config.getConfig().rendersBucket, renderId, (err, resp) => {
         if (err) {
           return callback(err);
         }
@@ -124,7 +125,7 @@ function readRender (req, res, renderId, callback) {
           }
           /** If you want to keep the generated document into S3, uncomment the following line */
           // return callback(null, renderPath);
-          return s3Storage.deleteFile(config.getConfig().renderContainerName, renderId, (err) => {
+          return s3.deleteFile(config.getConfig().rendersBucket, renderId, (err) => {
             if (err) {
               return callback(err);
             }
@@ -141,7 +142,7 @@ function readRender (req, res, renderId, callback) {
      * If the generated document is loaded from the cache, the stored file must be deleted
      * Non-blocking delete file 
      */
-    s3Storage.deleteFile(config.getConfig().renderContainerName, renderId, (err) => {
+    s3.deleteFile(config.getConfig().rendersBucket, renderId, (err) => {
       if (err) {
         return callback(err);
       }
@@ -157,3 +158,38 @@ module.exports = {
   readRender,
   afterRender
 };
+
+/**
+ * ====== PRIVATE FUNCTION =======
+ */
+
+
+/**
+ * Test the connection to the S3 storage
+ * 
+ * @param {function} callback (err) => {} 
+ */
+function connection(callback) {
+  s3.listBuckets((err, res) => {
+    if (err) {
+      return callback(err);
+    }
+    /** If the connection gets an error, the storage-client may have switched to another storage, the activeStorage must be 0 */
+    if (s3.getConfig().activeStorage !== 0) {
+      return callback(new Error('Something went wrong when connecting to the S3.'));
+      
+    }
+    logListBuckets(err, res, s3.getConfig()?.storages[0]);
+    return callback();
+  })
+}
+
+function logListBuckets(err, res, store) {
+  if(err) {
+    console.log( "🚩 Storage error " + store?.url + " | " + store?.region + " | Error: " + err?.toString());
+  } else if (res?.statusCode !== 200) {
+    console.log( "🚩 Storage error " + store?.url + " | " + store?.region + " | Status" + res?.statusCode + '| Response: ' + res?.body);
+  } else {
+    console.log(`Storage ok | ` + store?.url + " | " + store?.region + " | Status " + res?.statusCode + ' | Buckets: ' + res.body?.bucket?.reduce((total, val) => total += '[ ' + val?.name + ' ]', ''));
+  }
+}

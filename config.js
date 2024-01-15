@@ -6,17 +6,22 @@ let config = null;
 function getConfig () {
   if (config === null) {
     try {
-      config = fs.readFileSync(path.join(__dirname, '..', 'config', 'config.json'), 'utf8');
+      const _path = path.join(__dirname, '..', 'config', 'config.json');
+      config = fs.readFileSync(_path, 'utf8');
       config = JSON.parse(config);
     }
     catch (e) {
       config = {};
     }
   }
-
   return config;
 }
 
+function setConfig(newConfig) {
+  config = newConfig;
+}
+
 module.exports = {
-  getConfig
+  getConfig,
+  setConfig
 };

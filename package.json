@@ -27,5 +27,9 @@
   "homepage": "https://github.com/carboneio/carbone-ee-plugin-s3#readme",
   "dependencies": {
     "tiny-storage-client": "=3.0.1"
+  },
+  "devDependencies": {
+    "mocha": "=10.2.0",
+    "nock": "=13.5.0"
   }
 }

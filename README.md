@@ -36,14 +36,14 @@ Now move to the parent directory, and add 3 configurations to the `config/config
             "region": "paris"
         }
     ],
-    "renderContainerName": "RENDERS_CONTAINER_NAME",
-    "templateContainerName": "TEMPLATES_CONTAINER_NAME"
+    "rendersBucket": "RENDERS_CONTAINER_NAME",
+    "templatesBucket": "TEMPLATES_CONTAINER_NAME"
 }
 ```
 Now start the Carbone On-premise binary, and the following logs will appear. If the connection fails or something goes wrong, an error message will be logged.
 
 ```sh
-- Additional plugin parameters detected: storageCredentials, renderContainerName, templateContainerName in config.json file
+- Additional plugin parameters detected: storageCredentials, rendersBucket, templatesBucket in config.json file
 - Loading plugin storage.js
 - Storage ok | s3.paris.api.url | paris | Status 200 | Buckets: [ RENDERS_CONTAINER_NAME ][ TEMPLATES_CONTAINER_NAME ]
 ```
