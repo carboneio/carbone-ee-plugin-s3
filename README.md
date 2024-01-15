@@ -25,7 +25,7 @@ Install Npm Packages
 ```sh
 npm install
 ```
-Now move the parent directory, and you must add 3 configurations on the `config/config.js`:
+Now move to the parent directory, and add 3 configurations to the `config/config.js`:
 ```js
 {
     "storageCredentials": [
@@ -40,8 +40,8 @@ Now move the parent directory, and you must add 3 configurations on the `config/
     "templateContainerName": "TEMPLATES_CONTAINER_NAME"
 }
 ```
-Now start the Carbone On-premise binary, and the following logs will appear.
-If the connection fails or something goes wrong, an error message will be logged.
+Now start the Carbone On-premise binary, and the following logs will appear. If the connection fails or something goes wrong, an error message will be logged.
+
 ```sh
 - Additional plugin parameters detected: storageCredentials, renderContainerName, templateContainerName in config.json file
 - Loading plugin storage.js
