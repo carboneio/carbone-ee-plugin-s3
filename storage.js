@@ -5,15 +5,26 @@ const path = require('path');
 const templateDir = config.getConfig().templatePath || path.join(__dirname, '..', 'template');
 const renderDir = config.getConfig().renderPath || path.join(__dirname, '..', 'render');
 
-// {
-//     storageCredentials
-//     renderContainerName
-//     templateContainerName
-// }
+const _config = config.getConfig();
+
+if (!_config?.storageCredentials) {
+  console.log("🔴 Plugin error: missing config 'storageCredentials'");
+  process.exit(1);
+}
+
+if (!_config?.renderContainerName) {
+  console.log("🔴 Plugin error: missing config 'renderContainerName'");
+  process.exit(1);
+}
+
+if (!_config?.templateContainerName) {
+  console.log("🔴 Plugin error: missing config 'templateContainerName'");
+  process.exit(1);
+}
 
 s3Storage.connection((err) => {
     if (err) {
-        console.log("Object storage error", err)
+        console.log("Object storage error:", err.toString());
         process.exit(1);
     }
 })
@@ -43,7 +54,7 @@ function readTemplate (req, res, templateId, callback) {
   const templatePath = path.join(templateDir, templateId);
 
   fs.access(templatePath, fs.F_OK, (err) => {
-    if (err) {
+    if (err) {      
       return s3Storage.downloadFile(config.getConfig().templateContainerName, templateId, (err, resp) => {
         if (err) {
           return callback(err);
@@ -94,32 +105,50 @@ function afterRender (req, res, err, reportPath, reportName, stats, callback) {
 }
 
 function readRender (req, res, renderId, callback) {
-    const renderPath = path.join(renderDir, renderId);
+  const renderPath = path.join(renderDir, renderId);
 
-    fs.access(renderPath, fs.F_OK, (err) => {
+  fs.access(renderPath, fs.F_OK, (err) => {
+    if (err) {
+      return s3Storage.downloadFile(config.getConfig().renderContainerName, renderId, (err, resp) => {
         if (err) {
-          return s3Storage.downloadFile(config.getConfig().renderContainerName, templateId, (err, resp) => {
+          return callback(err);
+        }
+        if (resp?.statusCode === 404) {
+          return callback(new Error('File does not exist'))
+        }
+        if (resp?.statusCode !== 200) {
+          return callback(new Error(`Status: ${resp?.statusCode} | Body: ${ resp?.body?.error?.code ?? resp?.body?.toString()}` ))
+        }
+        fs.writeFile(renderPath, resp.body, (err) => {
+          if (err) {
+            return callback(err);
+          }
+          /** If you want to keep the generated document into S3, uncomment the following line */
+          // return callback(null, renderPath);
+          return s3Storage.deleteFile(config.getConfig().renderContainerName, renderId, (err) => {
             if (err) {
               return callback(err);
             }
-            if (resp?.statusCode === 404) {
-              return callback(new Error('File does not exist'))
-            }
-            if (resp?.statusCode !== 200) {
-              return callback(new Error(`Status: ${resp?.statusCode} | Body: ${ resp?.body?.error?.code ?? resp?.body?.toString()}` ))
-            }
-            fs.writeFile(renderPath, resp.body, (err) => {
-              if (err) {
-                return callback(err);
-              }
-              return callback(null, renderPath);
-            });
+            return callback(null, renderPath);
           });
-        }
-        return callback(null, renderPath);
+        });
       });
+    }
+    
+    /** If you want to keep the generated document into S3, uncomment the following line */
+    // return callback(null, renderPath);
 
+    /** 
+     * If the generated document is loaded from the cache, the stored file must be deleted
+     * Non-blocking delete file 
+     */
+    s3Storage.deleteFile(config.getConfig().renderContainerName, renderId, (err) => {
+      if (err) {
+        return callback(err);
+      }
+    });
     return callback(null, renderPath);
+  });
 }
 
 module.exports = {
