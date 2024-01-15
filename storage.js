@@ -95,10 +95,10 @@ function afterRender (req, res, err, reportPath, reportName, stats, callback) {
     }
     s3.uploadFile(config.getConfig().rendersBucket, reportName, reportPath, (err, resp) => {
         if (err) {
-        return callback(err);
+          return callback(err);
         }
         if (resp?.statusCode !== 200) {
-            return callback(new Error(`Status: ${resp?.statusCode} | Body: ${ resp?.body?.error?.code ?? resp?.body?.toString()}` ))
+          return callback(new Error(`Status: ${resp?.statusCode} | Body: ${ resp?.body?.error?.code ?? resp?.body?.toString()}` ))
         }
         return callback();
     });
