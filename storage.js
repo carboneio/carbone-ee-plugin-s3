@@ -24,7 +24,7 @@ if (!_config?.templateContainerName) {
 
 s3Storage.connection((err) => {
     if (err) {
-        console.log("Object storage error:", err.toString());
+        console.log("🔴 Object storage error:", err.toString());
         process.exit(1);
     }
 })
