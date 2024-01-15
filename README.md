@@ -1,7 +1,5 @@
 # S3 Plugin for Carbone On-premise
 
-> 🟢 For Carbone On-premise only 
-
 Store your templates and generated document into S3 (AWS, OVHCloud, scaleway, and any S3 provider).
 
 ## Requirements
