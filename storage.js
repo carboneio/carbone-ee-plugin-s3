@@ -31,7 +31,6 @@ s3Storage.connection((err) => {
 
 function writeTemplate (req, res, templateId, templatePath, callback) {
     const _s3Header = {
-        'x-amz-meta-persist': true,
         'x-amz-meta-ext'    : req.headers?.['carbone-template-extension'] ?? ''
     };
 
