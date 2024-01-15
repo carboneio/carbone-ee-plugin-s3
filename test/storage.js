@@ -58,7 +58,6 @@ describe('Storage', function () {
         .reply(403, '<?xml version="1.0" encoding="UTF-8"?><Error><Code>AccessDenied</Code><Message>Access Denied.</Message><RequestId>tx439620795cdd41b08c58c-0064186222</RequestId></Error>');
 
       storage.writeTemplate({}, {}, 'templateId', pathFileTxt, (err) => {
-        console.log(err);
         assert.strictEqual(err.toString().includes(403), true);
         assert.strictEqual(err.toString().includes('AccessDenied'), true);
         done();
@@ -275,7 +274,6 @@ describe('Storage', function () {
         storage.readRender({}, {}, _renderID2, function(err, renderPath) {
             assert.strictEqual(null, err);
             assert.strictEqual(renderPath.includes('datasets/' + _renderID2), true)
-            console.log(renderPath);
             toDelete.push(renderPath);
             done();
         });
