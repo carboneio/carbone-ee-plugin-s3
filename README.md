@@ -25,7 +25,7 @@ Install Npm Packages
 ```sh
 npm install
 ```
-Now move to the parent directory, and add 3 configurations to the `config/config.js`:
+Now move to the parent directory, and add 3 configurations to the `config/config.json`:
 ```js
 {
     "storageCredentials": [
