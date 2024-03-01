@@ -4,8 +4,8 @@ All notable changes to this project will be documented in this file. This projec
 
 ## 1.1.0
 - Released the 2024/03/01
-- Specify a custom-named configuration file by creating the environment variable `CARBONE_S3_CONFIG`; the default filename is config.json.
-- Specify a custom path to the configuration file by creating the environment variable `CARBONE_S3_CONFIG_PATH`; the default path is the Carbone Server directory `./config`.
+- Specify a custom-named configuration file by creating the environment variable `CARBONE_S3_CONFIG`; the default filename is `config.json`.
+- Specify a custom path to the configuration file by creating the environment variable `CARBONE_S3_CONFIG_PATH`; the default path is the Carbone config directory `./config`.
 
 
 ## 1.0.0 

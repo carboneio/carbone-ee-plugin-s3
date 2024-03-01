@@ -47,3 +47,8 @@ Now start the Carbone On-premise binary, and the following logs will appear. If 
 - Loading plugin storage.js
 - Storage ok | s3.paris.api.url | paris | Status 200 | Buckets: [ RENDERS_CONTAINER_NAME ][ TEMPLATES_CONTAINER_NAME ]
 ```
+## Environment Variables
+
+The plugin supports the following environment variables to change the configuration file name and path:
+* `CARBONE_S3_CONFIG`: Specify a custom-named configuration file; the default filename is `config.json`.
+* `CARBONE_S3_CONFIG_PATH`: Specify a custom path to the configuration file; the default path is the Carbone Config directory `./config`.
