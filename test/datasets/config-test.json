@@ -1,0 +1,10 @@
+{
+    "storageCredentials": {
+        "accessKeyId": "accessKeyId2",
+        "secretAccessKey": "secretAccessKey2",
+        "url": "s3.sbg.first.cloud.test",
+        "region": "sbg"
+    },
+    "rendersBucket": "renderBucket2",
+    "templatesBucket": "templateBucket2"
+}

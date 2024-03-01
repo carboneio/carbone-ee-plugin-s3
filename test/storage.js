@@ -7,25 +7,28 @@ const config = require('../config');
 const _rendersBucket = 'renders-bucket';
 const _templatesBucket = 'templates-bucket';
 
-config.setConfig({
-    storageCredentials : {
-        accessKeyId     : 'accessKeyId',
-        secretAccessKey : 'secretAccessKey',
-        url             : 's3.gra.first.cloud.test',
-        region          : 'gra'
-    },
-    rendersBucket  : _rendersBucket,
-    templatesBucket: _templatesBucket,
-    templatePath: path.join(__dirname, 'datasets'),
-    renderPath: path.join(__dirname, 'datasets')
-})
-
 const pathFileTxt = path.join(__dirname, 'datasets', 'file.txt');
 
 const url1S3 = 'https://s3.gra.first.cloud.test';
 
 describe('Storage', function () {
   let storage = null;
+
+  this.beforeAll(function(done) {
+    config.setConfig({
+        storageCredentials : {
+            accessKeyId     : 'accessKeyId',
+            secretAccessKey : 'secretAccessKey',
+            url             : 's3.gra.first.cloud.test',
+            region          : 'gra'
+        },
+        rendersBucket  : _rendersBucket,
+        templatesBucket: _templatesBucket,
+        templatePath: path.join(__dirname, 'datasets'),
+        renderPath: path.join(__dirname, 'datasets')
+    })
+    done();
+  })
 
   before(function (done) {
     /** S3 Call for testing storage connection */
