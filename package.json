@@ -1,6 +1,6 @@
 {
   "name": "carbone-ee-plugin-s3",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "S3 Plugin for Carbone On-premise & On-AWS (carbone-ee) ",
   "main": "null",
   "scripts": {
