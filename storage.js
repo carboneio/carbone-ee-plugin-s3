@@ -3,32 +3,21 @@ const fs = require('fs');
 const path = require('path');
 const config = require('./config');
 
-const s3 = require('tiny-storage-client')(config.getConfig().storageCredentials);
-s3.setTimeout(30000)
-
 const _config = config.getConfig();
 const templateDir =_config.templatePath || path.join(__dirname, '..', 'template');
 const renderDir =_config.renderPath || path.join(__dirname, '..', 'render');
+let s3 = {};
 
-if (!_config?.storageCredentials) {
-  console.log("🔴 S3 Plugin error: missing 'storageCredentials' config, provide it on the config.json or as an Environment variables: AWS_SECRET_ACCESS_KEY, AWS_ACCESS_KEY_ID, AWS_ENDPOINT_URL and AWS_REGION");
-  process.exit(1);
+if (_config?.storageCredentials) {
+  s3 = require('tiny-storage-client')(_config.storageCredentials);
+  s3.setTimeout(30000)
+  connection((err) => {
+    if (err) {
+      console.log("🔴 S3 connection error:", err.toString());
+      process.exit(1);
+    }
+  })
 }
-
-if (!_config?.rendersBucket) {
-  console.log("🟠 S3 Plugin warning: missing 'rendersBucket' config to store documents in S3. Define it on the config.json or as an Environment variable: CONTAINER_RENDERS");
-}
-
-if (!_config?.templatesBucket) {
-  console.log("🟠 S3 Plugin warning: missing 'templatesBucket' config to store template in S3. Define it on the config.json or as an Environment variable: CONTAINER_TEMPLATES");
-}
-
-connection((err) => {
-  if (err) {
-    console.log("🔴 S3 connection error:", err.toString());
-    process.exit(1);
-  }
-})
 
 function writeTemplate (req, res, templateId, templatePath, callback) {
     const _s3Header = {};
