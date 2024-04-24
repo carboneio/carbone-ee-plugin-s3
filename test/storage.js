@@ -6,6 +6,18 @@ const config = require('../config');
 
 const _rendersBucket = 'renders-bucket';
 const _templatesBucket = 'templates-bucket';
+const _config = {
+  storageCredentials : {
+      accessKeyId     : 'accessKeyId',
+      secretAccessKey : 'secretAccessKey',
+      url             : 's3.gra.first.cloud.test',
+      region          : 'gra'
+  },
+  rendersBucket  : _rendersBucket,
+  templatesBucket: _templatesBucket,
+  templatePath: path.join(__dirname, 'datasets'),
+  renderPath: path.join(__dirname, 'datasets')
+}
 
 const pathFileTxt = path.join(__dirname, 'datasets', 'file.txt');
 
@@ -15,18 +27,7 @@ describe('Storage', function () {
   let storage = null;
 
   this.beforeAll(function(done) {
-    config.setConfig({
-        storageCredentials : {
-            accessKeyId     : 'accessKeyId',
-            secretAccessKey : 'secretAccessKey',
-            url             : 's3.gra.first.cloud.test',
-            region          : 'gra'
-        },
-        rendersBucket  : _rendersBucket,
-        templatesBucket: _templatesBucket,
-        templatePath: path.join(__dirname, 'datasets'),
-        renderPath: path.join(__dirname, 'datasets')
-    })
+    config.setConfig(_config)
     done();
   })
 
@@ -78,6 +79,18 @@ describe('Storage', function () {
         done();
       });
     });
+
+    it('should write template but should not send to s3 if the configuration `templatesBucket` does not exist', (done) => {
+      
+      config.setConfig(null);
+
+      storage.writeTemplate({}, {}, 'templateId', pathFileTxt, (err, templateName) => {
+        assert.strictEqual(err, null);
+        assert.strictEqual(templateName, 'templateId');
+        config.setConfig(_config);
+        done();
+      });
+    });
   });
 
   describe('Read template', () => {
@@ -107,6 +120,18 @@ describe('Storage', function () {
         assert.strictEqual(fs.existsSync(templatePath), true);
         assert.strictEqual(fs.readFileSync(templatePath, 'utf8'), 'With some content\n');
         toDelete.push(path.basename(templatePath));
+        done();
+      });
+    });
+
+    it('should read a template even if the "templatesBucket" does not exist', (done) => {
+      
+      config.setConfig(null);
+
+      storage.readTemplate({ }, {}, 'template.odt', (err, templatePath) => {
+        assert.strictEqual(err, null);
+        assert.strictEqual(path.basename(templatePath), 'template.odt');
+        config.setConfig(_config);
         done();
       });
     });
@@ -160,19 +185,24 @@ describe('Storage', function () {
         .delete(uri => uri.includes(`/${_templatesBucket}`))
         .reply(200);
 
-      const res = {
-        send (result) {
-          assert.deepStrictEqual(result, {
-            success : true,
-            message : 'Template deleted'
-          });
-          done();
-        }
-      };
-
-      storage.deleteTemplate({}, res, 'template.docx', (err, templatePath) => {
+      storage.deleteTemplate({}, {}, 'template.docx', (err, templatePath) => {
         assert.strictEqual(err, null);
         assert.strictEqual(templatePath.endsWith('/test/datasets/template.docx'), true);
+        done();
+      });
+    });
+
+
+    it('should delete the template even if the "templatesBucket" option does not exist', (done) => {
+
+      const _configCopy = {..._config}
+      delete _configCopy.templatesBucket;
+      config.setConfig(_configCopy);
+
+      storage.deleteTemplate({}, {}, 'template.docx', (err, templatePath) => {
+        assert.strictEqual(err, null);
+        assert.strictEqual(templatePath.endsWith('/test/datasets/template.docx'), true);
+        config.setConfig(_config);
         done();
       });
     });
@@ -220,6 +250,19 @@ describe('Storage', function () {
             done();
         });
     });
+
+    it('should save a generated doccument locally even if the option "rendersBucket" does not exist', function(done) {
+      
+      const _configCopy = {..._config}
+      delete _configCopy.rendersBucket;
+      config.setConfig(_configCopy);
+
+      storage.afterRender({}, {}, null, pathFileTxt, _renderName, {}, (err) => {
+          assert.strictEqual(err, undefined);
+          config.setConfig(_config);
+          done();
+      });
+  });
 
     it('should return an error if the rendering failled', function(done) {
         storage.afterRender({}, {}, new Error('Something went wrong'), pathFileTxt, _renderName, {}, (err) => {
@@ -282,24 +325,18 @@ describe('Storage', function () {
         });
     });
     
-    it('should download and delete the generated document from s3', function(done) {
+    it('should return the renderPath even if the "rendersBucket" option does not exist', function(done) {
 
         const _renderID = '89rf2jd9302jf329sok.pdf';
 
-        nock(url1S3)
-            .get(uri => uri.includes(`/${_rendersBucket}/${_renderID}`))
-            .reply(200, () => {
-                return fs.createReadStream(pathFileTxt);
-            });
-        
-        nock(url1S3)
-            .delete(uri => uri.includes(`/${_rendersBucket}/${_renderID}`))
-            .reply(200);
+        const _configCopy = {..._config}
+        delete _configCopy.rendersBucket;
+        config.setConfig(_configCopy);
 
         storage.readRender({}, {}, _renderID, function(err, renderPath) {
             assert.strictEqual(null, err);
             assert.strictEqual(renderPath.includes('datasets/' + _renderID), true)
-            toDelete.push(renderPath);
+            config.setConfig(_config);
             done();
         });
     });

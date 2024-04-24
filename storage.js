@@ -11,29 +11,31 @@ const templateDir =_config.templatePath || path.join(__dirname, '..', 'template'
 const renderDir =_config.renderPath || path.join(__dirname, '..', 'render');
 
 if (!_config?.storageCredentials) {
-  console.log("🔴 Plugin error: missing config 'storageCredentials'");
+  console.log("🔴 S3 Plugin error: missing 'storageCredentials' config, provide it on the config.json or as an Environment variables: AWS_SECRET_ACCESS_KEY, AWS_ACCESS_KEY_ID, AWS_ENDPOINT_URL and AWS_REGION");
   process.exit(1);
 }
 
 if (!_config?.rendersBucket) {
-  console.log("🔴 Plugin error: missing config 'rendersBucket'");
-  process.exit(1);
+  console.log("🟠 S3 Plugin warning: missing 'rendersBucket' config to store documents in S3. Define it on the config.json or as an Environment variable: CONTAINER_RENDERS");
 }
 
 if (!_config?.templatesBucket) {
-  console.log("🔴 Plugin error: missing config 'templatesBucket'");
-  process.exit(1);
+  console.log("🟠 S3 Plugin warning: missing 'templatesBucket' config to store template in S3. Define it on the config.json or as an Environment variable: CONTAINER_TEMPLATES");
 }
 
 connection((err) => {
   if (err) {
-    console.log("🔴 S3 error:", err.toString());
+    console.log("🔴 S3 connection error:", err.toString());
     process.exit(1);
   }
 })
 
 function writeTemplate (req, res, templateId, templatePath, callback) {
     const _s3Header = {};
+
+    if (!config.getConfig()?.templatesBucket) {
+      return callback(null, templateId);
+    }
 
     if (req.headers?.['carbone-template-mimetype']) {
         _s3Header['content-type'] = req.headers['carbone-template-mimetype'];
@@ -52,6 +54,10 @@ function writeTemplate (req, res, templateId, templatePath, callback) {
 
 function readTemplate (req, res, templateId, callback) {
   const templatePath = path.join(templateDir, templateId);
+
+  if (!config.getConfig()?.templatesBucket) {
+    return callback(null, templatePath);
+  }
 
   fs.access(templatePath, fs.F_OK, (err) => {
     if (err) {      
@@ -78,6 +84,10 @@ function readTemplate (req, res, templateId, callback) {
 }
 
 function deleteTemplate (req, res, templateId, callback) {
+  const templatePath = path.join(templateDir, templateId);
+  if (!config.getConfig()?.templatesBucket) {
+    return callback(null, templatePath);
+  }
   s3.deleteFile(config.getConfig().templatesBucket, templateId, (err, resp) => {
     if (err) {
       return callback(err);
@@ -85,13 +95,16 @@ function deleteTemplate (req, res, templateId, callback) {
     if (resp?.statusCode >= 300 || resp.statusCode < 200) {
       return callback(new Error(`Status: ${resp?.statusCode} | Body: ${ resp?.body?.error?.code ?? resp?.body?.toString()}` ))
     }
-    return callback(null, path.join(templateDir, templateId));
+    return callback(null, templatePath);
   });
 }
 
 function afterRender (req, res, err, reportPath, reportName, stats, callback) {
     if (err) {
         return callback(err);
+    }
+    if (!config.getConfig()?.rendersBucket) {
+      return callback();
     }
     s3.uploadFile(config.getConfig().rendersBucket, reportName, reportPath, (err, resp) => {
         if (err) {
@@ -107,7 +120,11 @@ function afterRender (req, res, err, reportPath, reportName, stats, callback) {
 function readRender (req, res, renderId, callback) {
   const renderPath = path.join(renderDir, renderId);
 
-  fs.access(renderPath, fs.F_OK, (err) => {
+  if (!config.getConfig()?.rendersBucket) {
+    return callback(null, renderPath);
+  }
+
+  return fs.access(renderPath, fs.F_OK, (err) => {
     if (err) {
       return s3.downloadFile(config.getConfig().rendersBucket, renderId, (err, resp) => {
         if (err) {
@@ -186,9 +203,9 @@ function connection(callback) {
 
 function logListBuckets(err, res, store) {
   if(err) {
-    console.log( "🚩 Storage error " + store?.url + " | " + store?.region + " | Error: " + err?.toString());
+    console.log( "🔴 Storage error " + store?.url + " | " + store?.region + " | Error: " + err?.toString());
   } else if (res?.statusCode !== 200) {
-    console.log( "🚩 Storage error " + store?.url + " | " + store?.region + " | Status" + res?.statusCode + '| Response: ' + res?.body);
+    console.log( "🔴 Storage error " + store?.url + " | " + store?.region + " | Status" + res?.statusCode + '| Response: ' + res?.body);
   } else {
     console.log(`Storage ok | ` + store?.url + " | " + store?.region + " | Status " + res?.statusCode + ' | Buckets: ' + res.body?.bucket?.reduce((total, val) => total += '[ ' + val?.name + ' ]', ''));
   }

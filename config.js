@@ -14,6 +14,20 @@ function getConfig () {
       config = {};
     }
   }
+  if (process?.env?.AWS_SECRET_ACCESS_KEY && process?.env?.AWS_ACCESS_KEY_ID && process?.env?.AWS_ENDPOINT_URL && process?.env?.AWS_REGION) {
+    config.storageCredentials = {
+      accessKeyId: process.env.AWS_SECRET_ACCESS_KEY,
+      secretAccessKey: process.env.AWS_ACCESS_KEY_ID,
+      url: process.env.AWS_ENDPOINT_URL,
+      region: process.env.AWS_REGION
+    }
+  }
+  if (process?.env?.BUCKET_RENDERS) {
+    config.rendersBucket = process.env.BUCKET_RENDERS
+  }
+  if (process?.env?.BUCKET_TEMPLATES) {
+    config.templatesBucket = process.env.BUCKET_TEMPLATES
+  }
   return config;
 }
 

@@ -25,22 +25,45 @@ Install Npm Packages
 ```sh
 npm install
 ```
-Now move to the parent directory, and add 3 configurations to the `config/config.json`:
-```js
-{
-    "storageCredentials": [
-        {
-            "accessKeyId": "ACCESS_KEY_ID",
-            "secretAccessKey": "SECRET_KEY",
-            "url": "s3.paris.api.url",
-            "region": "paris"
-        }
-    ],
-    "rendersBucket": "RENDERS_CONTAINER_NAME",
-    "templatesBucket": "TEMPLATES_CONTAINER_NAME"
-}
+Provide S3 configurations, as environment variables:
+```dotenv
+AWS_SECRET_ACCESS_KEY=ACCESS_KEY_ID
+AWS_ACCESS_KEY_ID=SECRET_KEY
+AWS_ENDPOINT_URL=s3.paris.api.url
+AWS_REGION=paris
+BUCKET_RENDERS="BUCKET NAME to store your generated documents"
+BUCKET_TEMPLATES="BUCKET NAME to store your templates"
 ```
-Now start the Carbone On-premise binary, and the following logs will appear. If the connection fails or something goes wrong, an error message will be logged.
+
+If you are using **Carbone Docker**, you have to mount the plugin directory a volume into the container, and you have to define environment variable for S3 credentials
+
+Command for Docker CLI:
+```sh
+docker run --platform linux/amd64 --name carbone -p 4000:4000 -e LANG=C.UTF-8 -v ./plugin:/app/plugin -e AWS_SECRET_ACCESS_KEY='ACCESS_KEY' -e AWS_ACCESS_KEY_ID='SECRET_KEY' -e AWS_ENDPOINT_URL='s3.paris.api.url' -e AWS_REGION='paris' -e BUCKET_RENDERS='bucket_renders' -e BUCKET_TEMPLATES='bucket_templates' carbone/carbone-ee
+```
+
+File for Docker-compose:
+```yml
+version: "3.9"
+services:
+  carbone:
+    image: carbone/carbone-ee:latest
+    platform: linux/amd64
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./plugin:/app/plugin
+    environment:
+      - LANG=C.UTF-8
+      - AWS_SECRET_ACCESS_KEY=ACCESS_KEY_ID
+      - AWS_ACCESS_KEY_ID=SECRET_KEY
+      - AWS_ENDPOINT_URL=s3.paris.api.url
+      - AWS_REGION=paris
+      - BUCKET_RENDERS="bucket_renders"
+      - BUCKET_TEMPLATES="bucket_templates"
+```
+
+Finally start the Carbone Server, and the following logs will appear. If the connection fails or something goes wrong, an error message will be logged.
 
 ```sh
 - Additional plugin parameters detected: storageCredentials, rendersBucket, templatesBucket in config.json file

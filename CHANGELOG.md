@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.2.0
+- Released the 2024/04/24
+- Added: You can now provide configurations as Environment variables:
+  * **S3 Credentials:** AWS_SECRET_ACCESS_KEY, AWS_ACCESS_KEY_ID, AWS_ENDPOINT_URL, AWS_REGION
+  * **Bucket name for storing templates:** BUCKET_TEMPLATES
+  * **Bucket name for storing generated documents:** BUCKET_RENDERS
+- Fixed: If options `BUCKET_TEMPLATES/templatesBucket` or `BUCKET_RENDER/rendersBucket` are missing, Carbone server will still work. Before it was stopping the process.
+
 ## 1.1.0
 - Released the 2024/03/01
 - Specify a custom-named configuration file by creating the environment variable `CARBONE_S3_CONFIG`; the default filename is `config.json`.
