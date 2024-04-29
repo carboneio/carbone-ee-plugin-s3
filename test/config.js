@@ -42,8 +42,8 @@ describe('Config', function () {
 
     it('should provide configurations as environment variables', function (done) {
         config.setConfig(null);
-        process.env.AWS_SECRET_ACCESS_KEY = 'accessKeyId2';
-        process.env.AWS_ACCESS_KEY_ID = 'secretAccessKey1';
+        process.env.AWS_ACCESS_KEY_ID = 'accessKeyId2';
+        process.env.AWS_SECRET_ACCESS_KEY = 'secretAccessKey1';
         process.env.AWS_ENDPOINT_URL = 's3.us-east-1.first.cloud.test';
         process.env.AWS_REGION = 'us-east-1';
         process.env.BUCKET_RENDERS = 'rendersBucket2';
