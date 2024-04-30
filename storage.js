@@ -11,11 +11,15 @@ let s3 = {};
 if (_config?.storageCredentials) {
   s3 = require('tiny-storage-client')(_config.storageCredentials);
   s3.setTimeout(30000)
-  connection((err) => {
+  connection("Templates", (err) => {
     if (err) {
-      console.log("🔴 S3 connection error:", err.toString());
-      process.exit(1);
+      console.log("🔴 S3 Connection |", err.toString());
     }
+    connection("Renders", (err) => {
+      if (err) {
+        console.log("🔴 S3 Connection |", err.toString());
+      }
+    })
   })
 }
 
@@ -175,27 +179,21 @@ module.exports = {
  * 
  * @param {function} callback (err) => {} 
  */
-function connection(callback) {
-  s3.listBuckets((err, res) => {
-    if (err) {
-      return callback(err);
-    }
-    /** If the connection gets an error, the storage-client may have switched to another storage, the activeStorage must be 0 */
-    if (s3.getConfig().activeStorage !== 0) {
-      return callback(new Error('Something went wrong when connecting to the S3.'));
-      
-    }
-    logListBuckets(err, res, s3.getConfig()?.storages[0]);
-    return callback();
-  })
-}
+function connection(type, callback) {
+  const _keyName = type === 'Templates' ? 'templatesBucket' : 'rendersBucket';
 
-function logListBuckets(err, res, store) {
-  if(err) {
-    console.log( "🔴 Storage error " + store?.url + " | " + store?.region + " | Error: " + err?.toString());
-  } else if (res?.statusCode !== 200) {
-    console.log( "🔴 Storage error " + store?.url + " | " + store?.region + " | Status" + res?.statusCode + '| Response: ' + res?.body);
+  if (config.getConfig()?.[_keyName]) {
+    return s3.headBucket(config.getConfig()?.[_keyName], function(err, resp) {
+      if (err) {
+        return callback(new Error(`${type} S3 Bucket Connection | ${config.getConfig()?.[_keyName]} | ${err.toString()}`));
+      }
+      if (resp?.statusCode !== 200) {
+        return callback(new Error(`${type} S3 Bucket Connection | ${config.getConfig()?.[_keyName]} | Status ` + resp?.statusCode + ' | Response: ' + resp?.body?.error?.message ?? resp?.body ));
+      }
+      console.log(`${type} S3 Bucket Connected | ${config.getConfig()?.[_keyName]} | Status ${resp?.statusCode}`);
+      return callback();
+    })
   } else {
-    console.log(`Storage ok | ` + store?.url + " | " + store?.region + " | Status " + res?.statusCode + ' | Buckets: ' + res.body?.bucket?.reduce((total, val) => total += '[ ' + val?.name + ' ]', ''));
+    return callback();
   }
 }

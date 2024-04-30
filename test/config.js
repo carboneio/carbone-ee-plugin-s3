@@ -4,6 +4,13 @@ const assert = require('assert');
 describe('Config', function () {
 
     it('should return an empty object if config.json does not exist, and environment variables are not available.', function (done) {
+        delete process.env.AWS_SECRET_ACCESS_KEY;
+        delete process.env.AWS_ACCESS_KEY_ID;
+        delete process.env.AWS_ENDPOINT_URL;
+        delete process.env.AWS_REGION
+        delete process.env.BUCKET_RENDERS;
+        delete process.env.BUCKET_TEMPLATES;
+        config.setConfig({});
         const _config = config.getConfig();
         assert.strictEqual(JSON.stringify(_config), '{}');
         done();

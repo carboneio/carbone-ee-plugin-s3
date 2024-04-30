@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.4.0
+- Released the 2024/04/30
+- S3 Bucket Connection is not listing Buckets anymore, but only verifying if `templatesBucket` and `rendersBucket` are accessible with a `HEAD /bucket` request. If options `BUCKET_TEMPLATES/templatesBucket` or `BUCKET_RENDER/rendersBucket` are missing, it won't try to connect.
+
 ## 1.3.0
 - Released the 2024/04/29
 - Fixed S3 Credential as Environment Variable
