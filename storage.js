@@ -99,7 +99,8 @@ function afterRender (req, res, err, reportPath, reportName, stats, callback) {
     if (!config.getConfig()?.rendersBucket) {
       return callback();
     }
-    s3.uploadFile(config.getConfig().rendersBucket, reportName, reportPath, (err, resp) => {
+    const _filename = reportName && reportName?.length > 0 ? reportName : path.basename(reportPath);
+    s3.uploadFile(config.getConfig().rendersBucket, _filename, reportPath, (err, resp) => {
         if (err) {
           return callback(err);
         }

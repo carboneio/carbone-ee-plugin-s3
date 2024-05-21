@@ -226,6 +226,18 @@ describe('Storage', function () {
         });
     });
 
+    it('should save a generated doccument into the Renders Bucket even if the filename is not provided', function(done) {
+      const _expectedFilename = path.basename(pathFileTxt);
+      nock(url1S3)
+          .put(uri => uri.includes(`/${_rendersBucket}/${_expectedFilename}`))
+          .reply(200);
+
+      storage.afterRender({}, {}, null, pathFileTxt, '', {}, (err) => {
+          assert.strictEqual(err, undefined);
+          done();
+      });
+  });
+
     it('should return an error if the rendering failled', function(done) {
         storage.afterRender({}, {}, new Error('Something went wrong'), pathFileTxt, _renderName, {}, (err) => {
             assert.strictEqual(err.toString(), 'Error: Something went wrong');
