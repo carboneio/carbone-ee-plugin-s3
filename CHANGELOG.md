@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.5.0
+- Update package "tiny-storage-client" to support S3 Minio
+- Update dev package Mocha and Nock
+
 ## 1.4.1
 - Released the 2024/05/21
 - Fixed: Generated documents are saved in S3 even if the `reportName` rendering option is not provided. It was throwing the error: `Status: 409 | Body: BucketAlreadyOwnedByYou`. Now, the document filename is the Render ID.
