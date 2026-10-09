@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file. This projec
 - Fixed: The S3 bucket connection error logged at startup does not end with `Response: undefined` anymore, it only shows the status code.
 - Fixed: When S3 refuses to delete a generated document (HTTP error status), the error is now logged.
 - Fixed: An invalid JSON configuration file is now logged instead of being silently ignored.
+- Fixed: Templates and generated documents downloaded from S3 are written into a temporary file, then renamed. Before, a concurrent request could read a partially written file from the local cache.
 - Replaced the deprecated `fs.F_OK` with `fs.constants.F_OK`
 - Added end-to-end tests with Carbone EE and S3Mock: `npm run test:e2e`
 

@@ -11,6 +11,26 @@ const pathFileTxt = path.join(__dirname, 'datasets', 'file.txt');
 
 const url1S3 = 'https://s3.gra.first.cloud.test';
 
+/**
+ * Spy fs.writeFile: for each call, record the written path and if the target file already exists at this moment
+ */
+function spyWriteFile (targetPath) {
+  const _writeFile = fs.writeFile;
+  const _calls = [];
+  fs.writeFile = function (filePath, ...args) {
+    _calls.push({ filePath, targetExists: fs.existsSync(targetPath) });
+    return _writeFile.call(fs, filePath, ...args);
+  };
+  return { calls: _calls, restore: () => { fs.writeFile = _writeFile; } };
+}
+
+/**
+ * List the temporary files left in the datasets folder
+ */
+function listTmpFiles () {
+  return fs.readdirSync(path.join(__dirname, 'datasets')).filter((f) => f.endsWith('.tmp'));
+}
+
 describe('Storage', function () {
   let storage = null;
 
@@ -112,6 +132,30 @@ describe('Storage', function () {
         assert.strictEqual(fs.existsSync(templatePath), true);
         assert.strictEqual(fs.readFileSync(templatePath, 'utf8'), 'With some content\n');
         toDelete.push(path.basename(templatePath));
+        done();
+      });
+    });
+
+    it('should write the template downloaded from s3 into a temporary file, then rename it, to never expose a partially written template', (done) => {
+      const _templatePath = path.join(__dirname, 'datasets', 'template-atomic.odt');
+      nock(url1S3)
+        .get(uri => uri.includes(`/${_templatesBucket}/template-atomic.odt`))
+        .reply(200, () => {
+          return fs.createReadStream(pathFileTxt);
+        });
+
+      const _spy = spyWriteFile(_templatePath);
+      storage.readTemplate({ }, {}, 'template-atomic.odt', (err, templatePath) => {
+        _spy.restore();
+        toDelete.push('template-atomic.odt');
+        assert.strictEqual(err, null);
+        assert.strictEqual(templatePath, _templatePath);
+        assert.strictEqual(_spy.calls.length, 1);
+        assert.notStrictEqual(_spy.calls[0].filePath, _templatePath);
+        assert.strictEqual(_spy.calls[0].filePath.endsWith('.tmp'), true);
+        assert.strictEqual(_spy.calls[0].targetExists, false);
+        assert.strictEqual(fs.readFileSync(_templatePath, 'utf8'), 'With some content\n');
+        assert.deepStrictEqual(listTmpFiles(), []);
         done();
       });
     });
@@ -372,6 +416,42 @@ describe('Storage', function () {
             toDelete.push(renderPath);
             done();
         });
+    });
+
+    it('should write the generated document downloaded from s3 into a temporary file, then rename it, to never expose a partially written document', function(done) {
+
+        const _renderID = 'render-atomic.pdf';
+        const _expectedPath = path.join(__dirname, 'datasets', _renderID);
+        toDelete.push(_expectedPath);
+
+        nock(url1S3)
+            .get(uri => uri.includes(`/${_rendersBucket}/${_renderID}`))
+            .reply(200, () => {
+                return fs.createReadStream(pathFileTxt);
+            });
+
+        nock(url1S3)
+            .delete(uri => uri.includes(`/${_rendersBucket}/${_renderID}`))
+            .reply(204);
+
+        const _spy = spyWriteFile(_expectedPath);
+        const _calls = [];
+        storage.readRender({}, {}, _renderID, function(err, renderPath) {
+            _spy.restore();
+            _calls.push({ err, renderPath });
+        });
+        setTimeout(() => {
+            _spy.restore();
+            assert.strictEqual(_calls.length, 1);
+            assert.strictEqual(_calls[0].err, null);
+            assert.strictEqual(_calls[0].renderPath, _expectedPath);
+            assert.strictEqual(_spy.calls.length, 1);
+            assert.strictEqual(_spy.calls[0].filePath.endsWith('.tmp'), true);
+            assert.strictEqual(_spy.calls[0].targetExists, false);
+            assert.strictEqual(fs.readFileSync(_expectedPath, 'utf8'), fs.readFileSync(pathFileTxt, 'utf8'));
+            assert.deepStrictEqual(listTmpFiles(), []);
+            done();
+        }, 200);
     });
 
     it('should return the generated document downloaded from s3 even if the s3 delete fails', function(done) {

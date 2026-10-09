@@ -1,6 +1,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const config = require('./config');
 
 const _config = config.getConfig();
@@ -68,7 +69,7 @@ function readTemplate (req, res, templateId, callback) {
         if (resp?.statusCode !== 200) {
           return callback(new Error(`Status: ${resp?.statusCode} | Body: ${ resp?.body?.error?.code ?? resp?.body?.toString()}` ))
         }
-        fs.writeFile(templatePath, resp.body, (err) => {
+        writeFileAtomic(templatePath, resp.body, (err) => {
           if (err) {
             return callback(err);
           }
@@ -134,7 +135,7 @@ function readRender (req, res, renderId, callback) {
         if (resp?.statusCode !== 200) {
           return callback(new Error(`Status: ${resp?.statusCode} | Body: ${ resp?.body?.error?.code ?? resp?.body?.toString()}` ))
         }
-        fs.writeFile(renderPath, resp.body, (err) => {
+        writeFileAtomic(renderPath, resp.body, (err) => {
           if (err) {
             return callback(err);
           }
@@ -183,6 +184,29 @@ function getBucket(keyName) {
     return undefined;
   }
   return config.getConfig()?.[keyName];
+}
+
+/**
+ * Write a file into a temporary file, then rename it: the file appears complete or not at all.
+ * Otherwise, a concurrent request could find the file with fs.access while it is written, and read a truncated file.
+ *
+ * @param {string} filePath
+ * @param {Buffer} content
+ * @param {function} callback (err) => {}
+ */
+function writeFileAtomic(filePath, content, callback) {
+  const _tmpPath = `${filePath}.${process.pid}.${crypto.randomUUID()}.tmp`;
+  fs.writeFile(_tmpPath, content, (err) => {
+    if (err) {
+      return fs.unlink(_tmpPath, () => callback(err));
+    }
+    fs.rename(_tmpPath, filePath, (err) => {
+      if (err) {
+        return fs.unlink(_tmpPath, () => callback(err));
+      }
+      return callback();
+    });
+  });
 }
 
 /**
