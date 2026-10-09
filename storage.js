@@ -43,7 +43,7 @@ function writeTemplate (req, res, templateId, templatePath, callback) {
         return callback(err, templateId);
         }
         if (resp?.statusCode !== 200) {
-            return callback(new Error(`Status: ${resp?.statusCode} | Body: ${ resp?.body?.error?.code ?? resp?.body?.toString()}` ))
+            return callback(new Error(`Status: ${resp?.statusCode} | Body: ${ resp?.body?.error?.code ?? resp?.body?.toString()}` ), templateId)
         }
         return callback(null, templateId);
     });
@@ -56,7 +56,7 @@ function readTemplate (req, res, templateId, callback) {
     return callback(null, templatePath);
   }
 
-  fs.access(templatePath, fs.F_OK, (err) => {
+  fs.access(templatePath, fs.constants.F_OK, (err) => {
     if (err) {      
       return s3.downloadFile(getBucket('templatesBucket'), templateId, (err, resp) => {
         if (err) {
@@ -89,7 +89,7 @@ function deleteTemplate (req, res, templateId, callback) {
     if (err) {
       return callback(err);
     }
-    if (resp?.statusCode >= 300 || resp.statusCode < 200) {
+    if (resp?.statusCode >= 300 || resp?.statusCode < 200) {
       return callback(new Error(`Status: ${resp?.statusCode} | Body: ${ resp?.body?.error?.code ?? resp?.body?.toString()}` ))
     }
     return callback(null, templatePath);
@@ -122,7 +122,7 @@ function readRender (req, res, renderId, callback) {
     return callback(null, renderPath);
   }
 
-  return fs.access(renderPath, fs.F_OK, (err) => {
+  return fs.access(renderPath, fs.constants.F_OK, (err) => {
     if (err) {
       return s3.downloadFile(getBucket('rendersBucket'), renderId, (err, resp) => {
         if (err) {
@@ -141,11 +141,7 @@ function readRender (req, res, renderId, callback) {
           /** If you want to keep the generated document into S3, uncomment the following line */
           // return callback(null, renderPath);
           /** The document is available locally: a failing S3 delete must not prevent its download */
-          s3.deleteFile(getBucket('rendersBucket'), renderId, (err) => {
-            if (err) {
-              console.log("🔴 S3 Delete Render |", renderId, "|", err.toString());
-            }
-          });
+          deleteRender(renderId);
           return callback(null, renderPath);
         });
       });
@@ -158,11 +154,7 @@ function readRender (req, res, renderId, callback) {
      * If the generated document is loaded from the cache, the stored file must be deleted
      * Non-blocking delete file 
      */
-    s3.deleteFile(getBucket('rendersBucket'), renderId, (err) => {
-      if (err) {
-        console.log("🔴 S3 Delete Render |", renderId, "|", err.toString());
-      }
-    });
+    deleteRender(renderId);
     return callback(null, renderPath);
   });
 }
@@ -191,6 +183,22 @@ function getBucket(keyName) {
     return undefined;
   }
   return config.getConfig()?.[keyName];
+}
+
+/**
+ * Delete a generated document from the renders bucket without waiting for the result, errors are only logged
+ *
+ * @param {string} renderId
+ */
+function deleteRender(renderId) {
+  s3.deleteFile(getBucket('rendersBucket'), renderId, (err, resp) => {
+    if (err) {
+      return console.log("🔴 S3 Delete Render |", renderId, "|", err.toString());
+    }
+    if (resp?.statusCode >= 300 || resp?.statusCode < 200) {
+      return console.log("🔴 S3 Delete Render |", renderId, "|", `Status: ${resp?.statusCode} | Body: ${ resp?.body?.error?.code ?? resp?.body?.toString()}`);
+    }
+  });
 }
 
 /**

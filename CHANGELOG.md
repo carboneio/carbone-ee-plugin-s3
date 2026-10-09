@@ -8,6 +8,9 @@ All notable changes to this project will be documented in this file. This projec
 - Fixed: When a generated document is downloaded from the local cache, an error while deleting it from S3 is logged and does not call the callback a second time anymore.
 - Fixed: When a generated document is downloaded from S3, an error while deleting it from S3 afterwards is logged and does not fail the download anymore.
 - Fixed: The S3 bucket connection error logged at startup does not end with `Response: undefined` anymore, it only shows the status code.
+- Fixed: When S3 refuses to delete a generated document (HTTP error status), the error is now logged.
+- Fixed: An invalid JSON configuration file is now logged instead of being silently ignored.
+- Replaced the deprecated `fs.F_OK` with `fs.constants.F_OK`
 - Added end-to-end tests with Carbone EE and S3Mock: `npm run test:e2e`
 
 ## 1.5.0

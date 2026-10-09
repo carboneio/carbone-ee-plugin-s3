@@ -64,10 +64,10 @@ describe('Storage', function () {
         .put(uri => uri.includes(`/${_templatesBucket}/templateId`))
         .reply(403, '<?xml version="1.0" encoding="UTF-8"?><Error><Code>AccessDenied</Code><Message>Access Denied.</Message><RequestId>tx439620795cdd41b08c58c-0064186222</RequestId></Error>');
 
-      storage.writeTemplate({}, {}, 'templateId', pathFileTxt, (err) => {
-        console.log(err);
+      storage.writeTemplate({}, {}, 'templateId', pathFileTxt, (err, templateName) => {
         assert.strictEqual(err.toString().includes(403), true);
         assert.strictEqual(err.toString().includes('AccessDenied'), true);
+        assert.strictEqual(templateName, 'templateId');
         done();
       });
     });
@@ -321,6 +321,33 @@ describe('Storage', function () {
         setTimeout(() => {
             assert.strictEqual(_nbCalls, 1);
             assert.strictEqual(nock.isDone(), true);
+            done();
+        }, 200);
+    });
+
+    it('should log an error if s3 refuses to delete the generated document loaded from the cache folder', function(done) {
+
+        const _renderID4 = 'document-4.pdf'
+        const _logs = [];
+        const _consoleLog = console.log;
+
+        fs.copyFileSync(path.join(__dirname, 'datasets', 'file.txt'), path.join(__dirname, 'datasets', _renderID4))
+        toDelete.push(path.join(__dirname, 'datasets', _renderID4));
+
+        nock(url1S3)
+            .delete(uri => uri.includes(`/${_rendersBucket}/${_renderID4}`))
+            .reply(403, '<?xml version="1.0" encoding="UTF-8"?><Error><Code>AccessDenied</Code><Message>Access Denied.</Message></Error>', { 'content-type': 'application/xml' });
+
+        const _calls = [];
+        console.log = (...args) => { _logs.push(args.join(' ')); };
+        storage.readRender({}, {}, _renderID4, function(err, renderPath) {
+            _calls.push({ err, renderPath });
+        });
+        setTimeout(() => {
+            console.log = _consoleLog;
+            assert.strictEqual(_calls.length, 1);
+            assert.strictEqual(_calls[0].err, null);
+            assert.strictEqual(_logs.includes(`🔴 S3 Delete Render | ${_renderID4} | Status: 403 | Body: AccessDenied`), true, _logs.join('\n'));
             done();
         }, 200);
     });

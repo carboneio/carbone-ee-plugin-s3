@@ -2,7 +2,7 @@
   "name": "carbone-ee-plugin-s3",
   "version": "1.5.0",
   "description": "S3 Plugin for Carbone On-premise & On-AWS (carbone-ee) ",
-  "main": "null",
+  "main": "storage.js",
   "scripts": {
     "test": "mocha",
     "test:e2e": "mocha test/e2e"

@@ -11,6 +11,10 @@ function getConfig () {
       config = JSON.parse(fs.readFileSync(_path, 'utf8'));
     }
     catch (e) {
+      /** A missing config file is expected (configuration from environment variables), an invalid one is not */
+      if (e?.code !== 'ENOENT') {
+        console.log("🔴 S3 Config | The configuration file cannot be loaded, it is ignored |", e.toString());
+      }
       config = {};
     }
   }
