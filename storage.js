@@ -3,12 +3,15 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const config = require('./config');
+const { version } = require('./package.json');
 
 const _config = config.getConfig();
 const templateDir =_config.templatePath || path.join(__dirname, '..', 'template');
 const renderDir =_config.renderPath || path.join(__dirname, '..', 'render');
 let s3 = {};
 let isS3Enabled = false;
+
+console.log(`S3 Plugin | v${version}`);
 
 if (_config?.storageCredentials) {
   isS3Enabled = true;
