@@ -78,6 +78,8 @@ The plugin supports the following environment variables to change the configurat
 
 ## Tests
 
+Tests require Node 20.19 or newer.
+
 Unit tests:
 ```sh
 npm test

@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file. This projec
 - Fixed: An invalid JSON configuration file is now logged instead of being silently ignored.
 - Fixed: Templates and generated documents downloaded from S3 are written into a temporary file, then renamed. Before, a concurrent request could read a partially written file from the local cache.
 - Replaced the deprecated `fs.F_OK` with `fs.constants.F_OK`
+- Update dev package Mocha to 12.0.3 to fix vulnerabilities of its dependencies (development only, the plugin is not affected). Running the tests requires Node 20.19 or newer.
 - Added end-to-end tests with Carbone EE and S3Mock: `npm run test:e2e`
 
 ## 1.5.0
