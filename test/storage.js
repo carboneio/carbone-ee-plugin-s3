@@ -483,4 +483,49 @@ describe('Storage', function () {
       });
     });
   })
+
+  describe('Bucket connection errors at startup', function () {
+    let _previousConfig = null;
+    const _logs = [];
+    const _consoleLog = console.log;
+
+    before(function (done) {
+      _previousConfig = config.getConfig();
+      config.setConfig({
+        storageCredentials : _previousConfig.storageCredentials,
+        rendersBucket  : _rendersBucket,
+        templatesBucket: _templatesBucket
+      });
+
+      nock(url1S3)
+        .intercept(`/${_templatesBucket}`, "HEAD")
+        .reply(403);
+
+      nock(url1S3)
+        .intercept(`/${_rendersBucket}`, "HEAD")
+        .reply(403, '', { 'content-type': 'application/xml' });
+
+      console.log = (...args) => { _logs.push(args.join(' ')); };
+      delete require.cache[require.resolve('../storage')];
+      require('../storage');
+      setTimeout(() => {
+        console.log = _consoleLog;
+        done();
+      }, 500);
+    });
+
+    after(function () {
+      console.log = _consoleLog;
+      config.setConfig(_previousConfig);
+      delete require.cache[require.resolve('../storage')];
+    });
+
+    it('should log the status code of the HEAD bucket request', function () {
+      assert.strictEqual(_logs.includes(`🔴 S3 Connection | Error: Templates S3 Bucket Connection | ${_templatesBucket} | Status 403`), true, _logs.join('\n'));
+    });
+
+    it('should log the status code of the HEAD bucket request if S3 returns an XML content-type', function () {
+      assert.strictEqual(_logs.includes(`🔴 S3 Connection | Error: Renders S3 Bucket Connection | ${_rendersBucket} | Status 403`), true, _logs.join('\n'));
+    });
+  })
 });

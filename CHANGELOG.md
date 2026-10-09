@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file. This projec
 - Fixed: If S3 credentials are missing while `BUCKET_TEMPLATES/templatesBucket` or `BUCKET_RENDERS/rendersBucket` are provided, the plugin does not crash on the first request anymore: buckets are ignored and files are stored locally.
 - Fixed: When a generated document is downloaded from the local cache, an error while deleting it from S3 is logged and does not call the callback a second time anymore.
 - Fixed: When a generated document is downloaded from S3, an error while deleting it from S3 afterwards is logged and does not fail the download anymore.
+- Fixed: The S3 bucket connection error logged at startup does not end with `Response: undefined` anymore, it only shows the status code.
 - Added end-to-end tests with Carbone EE and S3Mock: `npm run test:e2e`
 
 ## 1.5.0

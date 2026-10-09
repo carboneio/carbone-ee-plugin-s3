@@ -207,7 +207,8 @@ function connection(type, callback) {
         return callback(new Error(`${type} S3 Bucket Connection | ${config.getConfig()?.[_keyName]} | ${err.toString()}`));
       }
       if (resp?.statusCode !== 200) {
-        return callback(new Error(`${type} S3 Bucket Connection | ${config.getConfig()?.[_keyName]} | Status ` + resp?.statusCode + ' | Response: ' + resp?.body?.error?.message ?? resp?.body ));
+        /** HEAD responses have no body, only the status code explains the error */
+        return callback(new Error(`${type} S3 Bucket Connection | ${config.getConfig()?.[_keyName]} | Status ${resp?.statusCode}`));
       }
       console.log(`${type} S3 Bucket Connected | ${config.getConfig()?.[_keyName]} | Status ${resp?.statusCode}`);
       return callback();
