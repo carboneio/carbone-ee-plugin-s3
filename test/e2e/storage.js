@@ -106,7 +106,10 @@ describe('E2E - Carbone EE with the S3 plugin', function () {
     if (_installedVersion !== _expectedVersion) {
       throw new Error(`tiny-storage-client ${_installedVersion} is installed instead of ${_expectedVersion}, run "npm ci"`);
     }
-    compose('up', '-d', '--quiet-pull');
+    /** The plugin checks the buckets at startup: S3Mock must be listening before Carbone starts */
+    compose('up', '-d', '--quiet-pull', 's3mock');
+    await eventually(() => listBucket(_templatesBucket), 60000);
+    compose('up', '-d', '--quiet-pull', 'carbone');
     for (let i = 0; i < 90; i++) {
       try {
         if ((await fetch(`${carboneUrl}/status`)).ok) {
