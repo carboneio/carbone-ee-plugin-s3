@@ -103,8 +103,8 @@ function afterRender (req, res, err, reportPath, reportName, stats, callback) {
     if (!getBucket('rendersBucket')) {
       return callback();
     }
-    const _filename = reportName && reportName?.length > 0 ? reportName : path.basename(reportPath);
-    s3.uploadFile(getBucket('rendersBucket'), _filename, reportPath, (err, resp) => {
+    /** The S3 key must be the render ID (reportPath basename) because readRender downloads the file with it */
+    s3.uploadFile(getBucket('rendersBucket'), path.basename(reportPath), reportPath, (err, resp) => {
         if (err) {
           return callback(err);
         }

@@ -214,22 +214,23 @@ describe('Storage', function () {
   describe('After render', () => {
     
     const _renderName = "render-1234.pdf";
+    const _renderId = path.basename(pathFileTxt);
 
-    it('should save a generated doccument into the Renders Bucket', function(done) {
+    it('should save a generated doccument into the Renders Bucket with the render ID as key, even if a reportName is provided', function(done) {
         nock(url1S3)
-            .put(uri => uri.includes(`/${_rendersBucket}/${_renderName}`))
+            .put(uri => uri.includes(`/${_rendersBucket}/${_renderId}`))
             .reply(200);
 
         storage.afterRender({}, {}, null, pathFileTxt, _renderName, {}, (err) => {
             assert.strictEqual(err, undefined);
+            assert.strictEqual(nock.isDone(), true);
             done();
         });
     });
 
     it('should save a generated doccument into the Renders Bucket even if the filename is not provided', function(done) {
-      const _expectedFilename = path.basename(pathFileTxt);
       nock(url1S3)
-          .put(uri => uri.includes(`/${_rendersBucket}/${_expectedFilename}`))
+          .put(uri => uri.includes(`/${_rendersBucket}/${_renderId}`))
           .reply(200);
 
       storage.afterRender({}, {}, null, pathFileTxt, '', {}, (err) => {
@@ -247,7 +248,7 @@ describe('Storage', function () {
 
     it('should return an error if s3 return an error 400', (done) => {
         nock(url1S3)
-            .put(uri => uri.includes(`/${_rendersBucket}/${_renderName}`))
+            .put(uri => uri.includes(`/${_rendersBucket}/${_renderId}`))
             .reply(403);
   
         storage.afterRender({}, {}, null, pathFileTxt, _renderName, {}, (err) => {
@@ -258,7 +259,7 @@ describe('Storage', function () {
   
     it('should return an error if s3 return an error 500', (done) => {
         nock(url1S3)
-            .put(uri => uri.includes(`/${_rendersBucket}/${_renderName}`))
+            .put(uri => uri.includes(`/${_rendersBucket}/${_renderId}`))
             .replyWithError('Server Unavailable');
 
         storage.afterRender({}, {}, null, pathFileTxt, _renderName, {}, (err) => {
