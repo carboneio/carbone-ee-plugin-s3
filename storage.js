@@ -140,12 +140,13 @@ function readRender (req, res, renderId, callback) {
           }
           /** If you want to keep the generated document into S3, uncomment the following line */
           // return callback(null, renderPath);
-          return s3.deleteFile(getBucket('rendersBucket'), renderId, (err) => {
+          /** The document is available locally: a failing S3 delete must not prevent its download */
+          s3.deleteFile(getBucket('rendersBucket'), renderId, (err) => {
             if (err) {
-              return callback(err);
+              console.log("🔴 S3 Delete Render |", renderId, "|", err.toString());
             }
-            return callback(null, renderPath);
           });
+          return callback(null, renderPath);
         });
       });
     }

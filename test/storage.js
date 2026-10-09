@@ -347,6 +347,41 @@ describe('Storage', function () {
         });
     });
 
+    it('should return the generated document downloaded from s3 even if the s3 delete fails', function(done) {
+
+        const _renderID = 'dj39dk20dk3odk2.pdf';
+        const _expectedPath = path.join(__dirname, 'datasets', _renderID);
+
+        /** The document must not be in the cache folder, otherwise it is not downloaded from s3 */
+        toDelete.push(_expectedPath);
+        if (fs.existsSync(_expectedPath)) {
+            fs.unlinkSync(_expectedPath);
+        }
+
+        nock(url1S3)
+            .get(uri => uri.includes(`/${_rendersBucket}/${_renderID}`))
+            .reply(200, () => {
+                return fs.createReadStream(pathFileTxt);
+            });
+
+        nock(url1S3)
+            .delete(uri => uri.includes(`/${_rendersBucket}/${_renderID}`))
+            .replyWithError('Network error');
+
+        const _calls = [];
+        storage.readRender({}, {}, _renderID, function(err, renderPath) {
+            _calls.push({ err, renderPath });
+        });
+        setTimeout(() => {
+            assert.strictEqual(_calls.length, 1);
+            assert.strictEqual(_calls[0].err, null);
+            assert.strictEqual(_calls[0].renderPath, _expectedPath);
+            assert.strictEqual(fs.readFileSync(_expectedPath, 'utf8'), fs.readFileSync(pathFileTxt, 'utf8'));
+            assert.strictEqual(nock.isDone(), true);
+            done();
+        }, 200);
+    });
+
     it('should return an error if the file does not exist', (done) => {
 
         const _renderID = '00289rf2jd9302jf329sok.pdf';
