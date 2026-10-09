@@ -3,6 +3,7 @@
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## 1.6.0
+- Released the 2026/10/09
 - Fixed: Generated documents are always saved in S3 with the Render ID as filename, even if the `reportName` rendering option is provided. Before, a document rendered with `reportName` could not be downloaded once it was no longer in the local cache (`404 File not found`), and two documents with the same `reportName` were overwriting each other in the bucket.
 - Fixed: If S3 credentials are missing while `BUCKET_TEMPLATES/templatesBucket` or `BUCKET_RENDERS/rendersBucket` are provided, the plugin does not crash on the first request anymore: buckets are ignored and files are stored locally.
 - Fixed: When a generated document is downloaded from the local cache, an error while deleting it from S3 is logged and does not call the callback a second time anymore.
