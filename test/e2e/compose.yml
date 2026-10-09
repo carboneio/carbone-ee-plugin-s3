@@ -1,0 +1,32 @@
+# End-to-end test stack: Carbone EE loading this repository's plugin, backed by S3Mock.
+# Driven by test/e2e/storage.js (npm run test:e2e).
+
+services:
+  # S3 emulator (path-style, any credentials). MinIO no longer publishes its images.
+  s3mock:
+    image: adobe/s3mock:5.2.3
+    environment:
+      COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: templates,renders
+    # Reached from the tests to inspect the buckets
+    ports:
+      - "127.0.0.1:${S3MOCK_PORT:-9190}:9090"
+
+  carbone:
+    image: ${CARBONE_IMAGE:-carbone/carbone-ee:full}
+    platform: linux/amd64
+    depends_on:
+      - s3mock
+    environment:
+      LANG: C.UTF-8
+      AWS_ACCESS_KEY_ID: carbone
+      AWS_SECRET_ACCESS_KEY: carbone-e2e-secret
+      AWS_ENDPOINT_URL: http://s3mock:9090/
+      AWS_REGION: us-east-1
+      BUCKET_TEMPLATES: templates
+      BUCKET_RENDERS: renders
+    # The image entrypoint copies /app/plugin-s3 (*.js and node_modules) into /app/plugin:
+    # mounting the repository there makes Carbone load the plugin under test.
+    volumes:
+      - ../..:/app/plugin-s3:ro
+    ports:
+      - "127.0.0.1:${CARBONE_PORT:-4201}:4000"

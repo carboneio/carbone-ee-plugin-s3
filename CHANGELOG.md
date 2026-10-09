@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 1.6.0
+- Fixed: Generated documents are always saved in S3 with the Render ID as filename, even if the `reportName` rendering option is provided. Before, a document rendered with `reportName` could not be downloaded once it was no longer in the local cache (`404 File not found`), and two documents with the same `reportName` were overwriting each other in the bucket.
+- Fixed: If S3 credentials are missing while `BUCKET_TEMPLATES/templatesBucket` or `BUCKET_RENDERS/rendersBucket` are provided, the plugin does not crash on the first request anymore: buckets are ignored and files are stored locally.
+- Fixed: When a generated document is downloaded from the local cache, an error while deleting it from S3 is logged and does not call the callback a second time anymore.
+- Fixed: When a generated document is downloaded from S3, an error while deleting it from S3 afterwards is logged and does not fail the download anymore.
+- Fixed: The S3 bucket connection error logged at startup does not end with `Response: undefined` anymore, it only shows the status code.
+- Fixed: When S3 refuses to delete a generated document (HTTP error status), the error is now logged.
+- Fixed: An invalid JSON configuration file is now logged instead of being silently ignored.
+- Fixed: Templates and generated documents downloaded from S3 are written into a temporary file, then renamed. Before, a concurrent request could read a partially written file from the local cache.
+- Added: The plugin version is logged when the plugin is loaded: `S3 Plugin | v1.6.0`
+- Replaced the deprecated `fs.F_OK` with `fs.constants.F_OK`
+- Update dev package Mocha to 12.0.3 to fix vulnerabilities of its dependencies (development only, the plugin is not affected). Running the tests requires Node 20.19 or newer.
+- Added end-to-end tests with Carbone EE and S3Mock: `npm run test:e2e`
+
 ## 1.5.0
 - Update package "tiny-storage-client" to support S3 Minio
 - Update dev package Mocha and Nock

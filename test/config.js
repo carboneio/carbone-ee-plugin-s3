@@ -47,6 +47,43 @@ describe('Config', function () {
     })
 
 
+    it('should log an error and return an empty object if the config file is not a valid JSON', function (done) {
+        process.env.CARBONE_S3_CONFIG = 'config-invalid.json';
+        process.env.CARBONE_S3_CONFIG_PATH = './test/datasets'
+        const _logs = [];
+        const _consoleLog = console.log;
+        console.log = (...args) => { _logs.push(args.join(' ')); };
+
+        config.setConfig(null);
+        const _config = config.getConfig();
+        console.log = _consoleLog;
+        delete process.env.CARBONE_S3_CONFIG;
+        delete process.env.CARBONE_S3_CONFIG_PATH;
+
+        assert.strictEqual(JSON.stringify(_config), '{}');
+        assert.strictEqual(_logs.length, 1);
+        assert.strictEqual(_logs[0].startsWith('🔴 S3 Config | The configuration file cannot be loaded, it is ignored | SyntaxError'), true, _logs[0]);
+        done()
+    })
+
+    it('should not log anything if the config file does not exist', function (done) {
+        process.env.CARBONE_S3_CONFIG = 'config-does-not-exist.json';
+        process.env.CARBONE_S3_CONFIG_PATH = './test/datasets'
+        const _logs = [];
+        const _consoleLog = console.log;
+        console.log = (...args) => { _logs.push(args.join(' ')); };
+
+        config.setConfig(null);
+        const _config = config.getConfig();
+        console.log = _consoleLog;
+        delete process.env.CARBONE_S3_CONFIG;
+        delete process.env.CARBONE_S3_CONFIG_PATH;
+
+        assert.strictEqual(JSON.stringify(_config), '{}');
+        assert.strictEqual(_logs.length, 0);
+        done()
+    })
+
     it('should provide configurations as environment variables', function (done) {
         config.setConfig(null);
         process.env.AWS_ACCESS_KEY_ID = 'accessKeyId2';

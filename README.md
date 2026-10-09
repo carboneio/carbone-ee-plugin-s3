@@ -75,3 +75,19 @@ Finally start the Carbone Server, and the following logs will appear. If the con
 The plugin supports the following environment variables to change the configuration file name and path:
 * `CARBONE_S3_CONFIG`: Specify a custom-named configuration file; the default filename is `config.json`.
 * `CARBONE_S3_CONFIG_PATH`: Specify a custom path to the configuration file; the default path is the Carbone Config directory `./config`.
+
+## Tests
+
+Tests require Node 20.19 or newer.
+
+Unit tests:
+```sh
+npm test
+```
+
+End-to-end tests start a Carbone EE server loading this plugin, with [S3Mock](https://github.com/adobe/S3Mock) as S3 storage (`test/e2e/compose.yml`). They require Docker (no Carbone license needed):
+```sh
+npm ci
+npm run test:e2e
+```
+Optional environment variables: `CARBONE_IMAGE` (default `carbone/carbone-ee:full`), `CARBONE_PORT` (default `4201`), `S3MOCK_PORT` (default `9190`), and `KEEP_STACK=1` to leave the containers running after the tests.

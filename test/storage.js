@@ -11,6 +11,26 @@ const pathFileTxt = path.join(__dirname, 'datasets', 'file.txt');
 
 const url1S3 = 'https://s3.gra.first.cloud.test';
 
+/**
+ * Spy fs.writeFile: for each call, record the written path and if the target file already exists at this moment
+ */
+function spyWriteFile (targetPath) {
+  const _writeFile = fs.writeFile;
+  const _calls = [];
+  fs.writeFile = function (filePath, ...args) {
+    _calls.push({ filePath, targetExists: fs.existsSync(targetPath) });
+    return _writeFile.call(fs, filePath, ...args);
+  };
+  return { calls: _calls, restore: () => { fs.writeFile = _writeFile; } };
+}
+
+/**
+ * List the temporary files left in the datasets folder
+ */
+function listTmpFiles () {
+  return fs.readdirSync(path.join(__dirname, 'datasets')).filter((f) => f.endsWith('.tmp'));
+}
+
 describe('Storage', function () {
   let storage = null;
 
@@ -64,10 +84,10 @@ describe('Storage', function () {
         .put(uri => uri.includes(`/${_templatesBucket}/templateId`))
         .reply(403, '<?xml version="1.0" encoding="UTF-8"?><Error><Code>AccessDenied</Code><Message>Access Denied.</Message><RequestId>tx439620795cdd41b08c58c-0064186222</RequestId></Error>');
 
-      storage.writeTemplate({}, {}, 'templateId', pathFileTxt, (err) => {
-        console.log(err);
+      storage.writeTemplate({}, {}, 'templateId', pathFileTxt, (err, templateName) => {
         assert.strictEqual(err.toString().includes(403), true);
         assert.strictEqual(err.toString().includes('AccessDenied'), true);
+        assert.strictEqual(templateName, 'templateId');
         done();
       });
     });
@@ -112,6 +132,30 @@ describe('Storage', function () {
         assert.strictEqual(fs.existsSync(templatePath), true);
         assert.strictEqual(fs.readFileSync(templatePath, 'utf8'), 'With some content\n');
         toDelete.push(path.basename(templatePath));
+        done();
+      });
+    });
+
+    it('should write the template downloaded from s3 into a temporary file, then rename it, to never expose a partially written template', (done) => {
+      const _templatePath = path.join(__dirname, 'datasets', 'template-atomic.odt');
+      nock(url1S3)
+        .get(uri => uri.includes(`/${_templatesBucket}/template-atomic.odt`))
+        .reply(200, () => {
+          return fs.createReadStream(pathFileTxt);
+        });
+
+      const _spy = spyWriteFile(_templatePath);
+      storage.readTemplate({ }, {}, 'template-atomic.odt', (err, templatePath) => {
+        _spy.restore();
+        toDelete.push('template-atomic.odt');
+        assert.strictEqual(err, null);
+        assert.strictEqual(templatePath, _templatePath);
+        assert.strictEqual(_spy.calls.length, 1);
+        assert.notStrictEqual(_spy.calls[0].filePath, _templatePath);
+        assert.strictEqual(_spy.calls[0].filePath.endsWith('.tmp'), true);
+        assert.strictEqual(_spy.calls[0].targetExists, false);
+        assert.strictEqual(fs.readFileSync(_templatePath, 'utf8'), 'With some content\n');
+        assert.deepStrictEqual(listTmpFiles(), []);
         done();
       });
     });
@@ -214,22 +258,23 @@ describe('Storage', function () {
   describe('After render', () => {
     
     const _renderName = "render-1234.pdf";
+    const _renderId = path.basename(pathFileTxt);
 
-    it('should save a generated doccument into the Renders Bucket', function(done) {
+    it('should save a generated doccument into the Renders Bucket with the render ID as key, even if a reportName is provided', function(done) {
         nock(url1S3)
-            .put(uri => uri.includes(`/${_rendersBucket}/${_renderName}`))
+            .put(uri => uri.includes(`/${_rendersBucket}/${_renderId}`))
             .reply(200);
 
         storage.afterRender({}, {}, null, pathFileTxt, _renderName, {}, (err) => {
             assert.strictEqual(err, undefined);
+            assert.strictEqual(nock.isDone(), true);
             done();
         });
     });
 
     it('should save a generated doccument into the Renders Bucket even if the filename is not provided', function(done) {
-      const _expectedFilename = path.basename(pathFileTxt);
       nock(url1S3)
-          .put(uri => uri.includes(`/${_rendersBucket}/${_expectedFilename}`))
+          .put(uri => uri.includes(`/${_rendersBucket}/${_renderId}`))
           .reply(200);
 
       storage.afterRender({}, {}, null, pathFileTxt, '', {}, (err) => {
@@ -247,7 +292,7 @@ describe('Storage', function () {
 
     it('should return an error if s3 return an error 400', (done) => {
         nock(url1S3)
-            .put(uri => uri.includes(`/${_rendersBucket}/${_renderName}`))
+            .put(uri => uri.includes(`/${_rendersBucket}/${_renderId}`))
             .reply(403);
   
         storage.afterRender({}, {}, null, pathFileTxt, _renderName, {}, (err) => {
@@ -258,7 +303,7 @@ describe('Storage', function () {
   
     it('should return an error if s3 return an error 500', (done) => {
         nock(url1S3)
-            .put(uri => uri.includes(`/${_rendersBucket}/${_renderName}`))
+            .put(uri => uri.includes(`/${_rendersBucket}/${_renderId}`))
             .replyWithError('Server Unavailable');
 
         storage.afterRender({}, {}, null, pathFileTxt, _renderName, {}, (err) => {
@@ -300,6 +345,57 @@ describe('Storage', function () {
         });
     });
     
+    it('should call the callback only once if the s3 delete fails when the document is loaded from the cache folder', function(done) {
+
+        const _renderID3 = 'document-3.pdf'
+
+        fs.copyFileSync(path.join(__dirname, 'datasets', 'file.txt'), path.join(__dirname, 'datasets', _renderID3))
+
+        nock(url1S3)
+            .delete(uri => uri.includes(`/${_rendersBucket}/${_renderID3}`))
+            .replyWithError('Network error');
+
+        let _nbCalls = 0;
+        storage.readRender({}, {}, _renderID3, function(err, renderPath) {
+            _nbCalls++;
+            assert.strictEqual(null, err);
+            assert.strictEqual(renderPath.includes('datasets/' + _renderID3), true)
+            toDelete.push(renderPath);
+        });
+        setTimeout(() => {
+            assert.strictEqual(_nbCalls, 1);
+            assert.strictEqual(nock.isDone(), true);
+            done();
+        }, 200);
+    });
+
+    it('should log an error if s3 refuses to delete the generated document loaded from the cache folder', function(done) {
+
+        const _renderID4 = 'document-4.pdf'
+        const _logs = [];
+        const _consoleLog = console.log;
+
+        fs.copyFileSync(path.join(__dirname, 'datasets', 'file.txt'), path.join(__dirname, 'datasets', _renderID4))
+        toDelete.push(path.join(__dirname, 'datasets', _renderID4));
+
+        nock(url1S3)
+            .delete(uri => uri.includes(`/${_rendersBucket}/${_renderID4}`))
+            .reply(403, '<?xml version="1.0" encoding="UTF-8"?><Error><Code>AccessDenied</Code><Message>Access Denied.</Message></Error>', { 'content-type': 'application/xml' });
+
+        const _calls = [];
+        console.log = (...args) => { _logs.push(args.join(' ')); };
+        storage.readRender({}, {}, _renderID4, function(err, renderPath) {
+            _calls.push({ err, renderPath });
+        });
+        setTimeout(() => {
+            console.log = _consoleLog;
+            assert.strictEqual(_calls.length, 1);
+            assert.strictEqual(_calls[0].err, null);
+            assert.strictEqual(_logs.includes(`🔴 S3 Delete Render | ${_renderID4} | Status: 403 | Body: AccessDenied`), true, _logs.join('\n'));
+            done();
+        }, 200);
+    });
+
     it('should download and delete the generated document from s3', function(done) {
 
         const _renderID = '89rf2jd9302jf329sok.pdf';
@@ -320,6 +416,77 @@ describe('Storage', function () {
             toDelete.push(renderPath);
             done();
         });
+    });
+
+    it('should write the generated document downloaded from s3 into a temporary file, then rename it, to never expose a partially written document', function(done) {
+
+        const _renderID = 'render-atomic.pdf';
+        const _expectedPath = path.join(__dirname, 'datasets', _renderID);
+        toDelete.push(_expectedPath);
+
+        nock(url1S3)
+            .get(uri => uri.includes(`/${_rendersBucket}/${_renderID}`))
+            .reply(200, () => {
+                return fs.createReadStream(pathFileTxt);
+            });
+
+        nock(url1S3)
+            .delete(uri => uri.includes(`/${_rendersBucket}/${_renderID}`))
+            .reply(204);
+
+        const _spy = spyWriteFile(_expectedPath);
+        const _calls = [];
+        storage.readRender({}, {}, _renderID, function(err, renderPath) {
+            _spy.restore();
+            _calls.push({ err, renderPath });
+        });
+        setTimeout(() => {
+            _spy.restore();
+            assert.strictEqual(_calls.length, 1);
+            assert.strictEqual(_calls[0].err, null);
+            assert.strictEqual(_calls[0].renderPath, _expectedPath);
+            assert.strictEqual(_spy.calls.length, 1);
+            assert.strictEqual(_spy.calls[0].filePath.endsWith('.tmp'), true);
+            assert.strictEqual(_spy.calls[0].targetExists, false);
+            assert.strictEqual(fs.readFileSync(_expectedPath, 'utf8'), fs.readFileSync(pathFileTxt, 'utf8'));
+            assert.deepStrictEqual(listTmpFiles(), []);
+            done();
+        }, 200);
+    });
+
+    it('should return the generated document downloaded from s3 even if the s3 delete fails', function(done) {
+
+        const _renderID = 'dj39dk20dk3odk2.pdf';
+        const _expectedPath = path.join(__dirname, 'datasets', _renderID);
+
+        /** The document must not be in the cache folder, otherwise it is not downloaded from s3 */
+        toDelete.push(_expectedPath);
+        if (fs.existsSync(_expectedPath)) {
+            fs.unlinkSync(_expectedPath);
+        }
+
+        nock(url1S3)
+            .get(uri => uri.includes(`/${_rendersBucket}/${_renderID}`))
+            .reply(200, () => {
+                return fs.createReadStream(pathFileTxt);
+            });
+
+        nock(url1S3)
+            .delete(uri => uri.includes(`/${_rendersBucket}/${_renderID}`))
+            .replyWithError('Network error');
+
+        const _calls = [];
+        storage.readRender({}, {}, _renderID, function(err, renderPath) {
+            _calls.push({ err, renderPath });
+        });
+        setTimeout(() => {
+            assert.strictEqual(_calls.length, 1);
+            assert.strictEqual(_calls[0].err, null);
+            assert.strictEqual(_calls[0].renderPath, _expectedPath);
+            assert.strictEqual(fs.readFileSync(_expectedPath, 'utf8'), fs.readFileSync(pathFileTxt, 'utf8'));
+            assert.strictEqual(nock.isDone(), true);
+            done();
+        }, 200);
     });
 
     it('should return an error if the file does not exist', (done) => {
@@ -360,6 +527,112 @@ describe('Storage', function () {
             assert.strictEqual(err.toString(), 'Error: All S3 storages are not available');
             done();
         });
+    });
+  })
+
+  describe('Buckets configured without S3 credentials', function () {
+    let storageNoCredentials = null;
+    let _previousConfig = null;
+
+    before(function () {
+      _previousConfig = config.getConfig();
+      config.setConfig({
+        rendersBucket  : _rendersBucket,
+        templatesBucket: _templatesBucket,
+        templatePath: path.join(__dirname, 'datasets'),
+        renderPath: path.join(__dirname, 'datasets')
+      });
+      delete require.cache[require.resolve('../storage')];
+      storageNoCredentials = require('../storage');
+    });
+
+    after(function () {
+      config.setConfig(_previousConfig);
+      delete require.cache[require.resolve('../storage')];
+    });
+
+    it('should not call S3 when writing a template', (done) => {
+      storageNoCredentials.writeTemplate({}, {}, 'templateId', pathFileTxt, (err, templateName) => {
+        assert.strictEqual(err, null);
+        assert.strictEqual(templateName, 'templateId');
+        done();
+      });
+    });
+
+    it('should return the local path when reading a template', (done) => {
+      storageNoCredentials.readTemplate({}, {}, 'templateId', (err, templatePath) => {
+        assert.strictEqual(err, null);
+        assert.strictEqual(templatePath, path.join(__dirname, 'datasets', 'templateId'));
+        done();
+      });
+    });
+
+    it('should return the local path when deleting a template', (done) => {
+      storageNoCredentials.deleteTemplate({}, {}, 'templateId', (err, templatePath) => {
+        assert.strictEqual(err, null);
+        assert.strictEqual(templatePath, path.join(__dirname, 'datasets', 'templateId'));
+        done();
+      });
+    });
+
+    it('should not call S3 after a render', (done) => {
+      storageNoCredentials.afterRender({}, {}, null, pathFileTxt, 'report.pdf', {}, (err) => {
+        assert.strictEqual(err, undefined);
+        done();
+      });
+    });
+
+    it('should return the local path when reading a render', (done) => {
+      storageNoCredentials.readRender({}, {}, 'renderId.pdf', (err, renderPath) => {
+        assert.strictEqual(err, null);
+        assert.strictEqual(renderPath, path.join(__dirname, 'datasets', 'renderId.pdf'));
+        done();
+      });
+    });
+  })
+
+  describe('Bucket connection errors at startup', function () {
+    let _previousConfig = null;
+    const _logs = [];
+    const _consoleLog = console.log;
+
+    before(function (done) {
+      _previousConfig = config.getConfig();
+      config.setConfig({
+        storageCredentials : _previousConfig.storageCredentials,
+        rendersBucket  : _rendersBucket,
+        templatesBucket: _templatesBucket
+      });
+
+      nock(url1S3)
+        .intercept(`/${_templatesBucket}`, "HEAD")
+        .reply(403);
+
+      nock(url1S3)
+        .intercept(`/${_rendersBucket}`, "HEAD")
+        .reply(403, '', { 'content-type': 'application/xml' });
+
+      console.log = (...args) => { _logs.push(args.join(' ')); };
+      delete require.cache[require.resolve('../storage')];
+      require('../storage');
+      setTimeout(() => {
+        console.log = _consoleLog;
+        done();
+      }, 500);
+    });
+
+    after(function () {
+      console.log = _consoleLog;
+      config.setConfig(_previousConfig);
+      delete require.cache[require.resolve('../storage')];
+    });
+
+    it('should log the status code of the HEAD bucket request', function () {
+      assert.strictEqual(_logs.includes(`🔴 S3 Connection | Error: Templates S3 Bucket Connection | ${_templatesBucket} | Status 403`), true, _logs.join('\n'));
+    });
+
+    it('should log the status code of the HEAD bucket request if S3 returns an XML content-type', function () {
+      assert.strictEqual(_logs.includes(`🔴 S3 Connection | Error: Renders S3 Bucket Connection | ${_rendersBucket} | Status 403`), true, _logs.join('\n'));
     });
   })
 });
