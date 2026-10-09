@@ -300,6 +300,30 @@ describe('Storage', function () {
         });
     });
     
+    it('should call the callback only once if the s3 delete fails when the document is loaded from the cache folder', function(done) {
+
+        const _renderID3 = 'document-3.pdf'
+
+        fs.copyFileSync(path.join(__dirname, 'datasets', 'file.txt'), path.join(__dirname, 'datasets', _renderID3))
+
+        nock(url1S3)
+            .delete(uri => uri.includes(`/${_rendersBucket}/${_renderID3}`))
+            .replyWithError('Network error');
+
+        let _nbCalls = 0;
+        storage.readRender({}, {}, _renderID3, function(err, renderPath) {
+            _nbCalls++;
+            assert.strictEqual(null, err);
+            assert.strictEqual(renderPath.includes('datasets/' + _renderID3), true)
+            toDelete.push(renderPath);
+        });
+        setTimeout(() => {
+            assert.strictEqual(_nbCalls, 1);
+            assert.strictEqual(nock.isDone(), true);
+            done();
+        }, 200);
+    });
+
     it('should download and delete the generated document from s3', function(done) {
 
         const _renderID = '89rf2jd9302jf329sok.pdf';
@@ -360,6 +384,67 @@ describe('Storage', function () {
             assert.strictEqual(err.toString(), 'Error: All S3 storages are not available');
             done();
         });
+    });
+  })
+
+  describe('Buckets configured without S3 credentials', function () {
+    let storageNoCredentials = null;
+    let _previousConfig = null;
+
+    before(function () {
+      _previousConfig = config.getConfig();
+      config.setConfig({
+        rendersBucket  : _rendersBucket,
+        templatesBucket: _templatesBucket,
+        templatePath: path.join(__dirname, 'datasets'),
+        renderPath: path.join(__dirname, 'datasets')
+      });
+      delete require.cache[require.resolve('../storage')];
+      storageNoCredentials = require('../storage');
+    });
+
+    after(function () {
+      config.setConfig(_previousConfig);
+      delete require.cache[require.resolve('../storage')];
+    });
+
+    it('should not call S3 when writing a template', (done) => {
+      storageNoCredentials.writeTemplate({}, {}, 'templateId', pathFileTxt, (err, templateName) => {
+        assert.strictEqual(err, null);
+        assert.strictEqual(templateName, 'templateId');
+        done();
+      });
+    });
+
+    it('should return the local path when reading a template', (done) => {
+      storageNoCredentials.readTemplate({}, {}, 'templateId', (err, templatePath) => {
+        assert.strictEqual(err, null);
+        assert.strictEqual(templatePath, path.join(__dirname, 'datasets', 'templateId'));
+        done();
+      });
+    });
+
+    it('should return the local path when deleting a template', (done) => {
+      storageNoCredentials.deleteTemplate({}, {}, 'templateId', (err, templatePath) => {
+        assert.strictEqual(err, null);
+        assert.strictEqual(templatePath, path.join(__dirname, 'datasets', 'templateId'));
+        done();
+      });
+    });
+
+    it('should not call S3 after a render', (done) => {
+      storageNoCredentials.afterRender({}, {}, null, pathFileTxt, 'report.pdf', {}, (err) => {
+        assert.strictEqual(err, undefined);
+        done();
+      });
+    });
+
+    it('should return the local path when reading a render', (done) => {
+      storageNoCredentials.readRender({}, {}, 'renderId.pdf', (err, renderPath) => {
+        assert.strictEqual(err, null);
+        assert.strictEqual(renderPath, path.join(__dirname, 'datasets', 'renderId.pdf'));
+        done();
+      });
     });
   })
 });
