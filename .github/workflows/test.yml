@@ -28,8 +28,16 @@ jobs:
   e2e:
     name: End-to-end tests
     runs-on: ubuntu-latest
+    env:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
     steps:
       - uses: actions/checkout@v5
+      # Anonymous pulls from shared runner IPs hit the Docker Hub rate limit (toomanyrequests)
+      - if: env.DOCKERHUB_USERNAME != ''
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
       - uses: actions/setup-node@v5
         with:
           node-version: 24

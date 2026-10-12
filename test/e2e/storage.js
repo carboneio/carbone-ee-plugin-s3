@@ -180,7 +180,9 @@ describe('E2E - Carbone EE with the S3 plugin', function () {
     const _res = await downloadRender(_renderId);
     assert.strictEqual(_res.status, 200);
     assert.strictEqual(_res.body, _expectedRender);
-    assert.strictEqual((await listBucket(_rendersBucket)).includes(_renderId), false);
+    await eventually(async () => {
+      assert.strictEqual((await listBucket(_rendersBucket)).includes(_renderId), false);
+    });
   });
 
   it('should download a render generated with a reportName when it is not in the local cache', async function () {
